@@ -3,6 +3,7 @@ package com.joespeaker.messageexport
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -27,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         if (results.values.all { it }) {
             onPermissionsGranted()
         } else {
-            binding.statusText.text = "Permissions are required to read and export messages."
+            setStatus("Permissions are required to read and export messages.", StatusIcon.ERROR)
         }
     }
 
@@ -41,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.runNowButton.setOnClickListener {
             ExportScheduler.runNow(this)
-            binding.statusText.text = "Export running..."
+            setStatus("Export running...", StatusIcon.RUNNING)
         }
         observeManualRun()
 
@@ -55,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (hasAllPermissions()) {
-            binding.grantPermissionsButton.isEnabled = false
+            binding.grantPermissionsButton.visibility = View.GONE
             binding.runNowButton.isEnabled = true
         }
     }
@@ -67,7 +68,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onPermissionsGranted() {
-        binding.grantPermissionsButton.isEnabled = false
+        binding.grantPermissionsButton.visibility = View.GONE
         binding.runNowButton.isEnabled = true
         ExportScheduler.schedulePeriodic(this)
         updateStatusFromLastRun()
@@ -78,18 +79,18 @@ class MainActivity : AppCompatActivity() {
         val lastRunMillis = prefs.getLong(ExportManager.PREF_LAST_RUN_MILLIS, -1L)
         if (lastRunMillis <= 0) {
             if (hasAllPermissions()) {
-                binding.statusText.text = "Scheduled. No export has run yet."
+                setStatus("Scheduled. No export has run yet.", StatusIcon.IDLE)
             }
             return
         }
         val success = prefs.getBoolean(ExportManager.PREF_LAST_SUCCESS, false)
         val when_ = DateFormat.getDateTimeInstance().format(Date(lastRunMillis))
-        binding.statusText.text = if (success) {
+        if (success) {
             val count = prefs.getInt(ExportManager.PREF_LAST_MESSAGE_COUNT, -1)
-            "Last export: $when_ - $count messages synced."
+            setStatus("Last export: $when_ - $count messages synced.", StatusIcon.SUCCESS)
         } else {
             val error = prefs.getString(ExportManager.PREF_LAST_ERROR, "unknown error")
-            "Last export failed ($when_): $error"
+            setStatus("Last export failed ($when_): $error", StatusIcon.ERROR)
         }
     }
 
@@ -101,9 +102,23 @@ class MainActivity : AppCompatActivity() {
                 if (info.state.isFinished) {
                     updateStatusFromLastRun()
                     if (info.state == WorkInfo.State.FAILED) {
-                        binding.statusText.text = "Export failed. Will retry on next schedule."
+                        setStatus("Export failed. Will retry on next schedule.", StatusIcon.ERROR)
                     }
                 }
             }
+    }
+
+    private enum class StatusIcon { IDLE, RUNNING, SUCCESS, ERROR }
+
+    private fun setStatus(text: String, icon: StatusIcon) {
+        binding.statusText.text = text
+        val (drawableRes, tintRes) = when (icon) {
+            StatusIcon.IDLE -> R.drawable.ic_cloud_upload to R.color.primary
+            StatusIcon.RUNNING -> R.drawable.ic_sync to R.color.primary
+            StatusIcon.SUCCESS -> R.drawable.ic_check_circle to R.color.success
+            StatusIcon.ERROR -> R.drawable.ic_error to R.color.error
+        }
+        binding.statusIcon.setImageResource(drawableRes)
+        binding.statusIcon.imageTintList = ContextCompat.getColorStateList(this, tintRes)
     }
 }
