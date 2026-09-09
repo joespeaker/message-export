@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SMS Export to Drive</string>
+    <string name="run_now">Run Export Now</string>
+    <string name="status_idle">Ready. Grant permissions to begin.</string>
+    <string name="grant_permissions">Grant Permissions</string>
+</resources>
